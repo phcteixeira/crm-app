@@ -13,11 +13,12 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Provide a dummy DATABASE_URL for build time (Prisma generate only needs the schema, not a live connection)
-ENV DATABASE_URL="postgresql://user:pass@localhost:5432/db?sslmode=disable"
+# Accept DATABASE_URL as a build argument (only needed for prisma generate + next build, not runtime)
+ARG DATABASE_URL=postgresql://user:pass@localhost:5432/db?sslmode=disable
+ENV DATABASE_URL=${DATABASE_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Generate Prisma client using the schema
+# Generate Prisma client
 RUN npx prisma generate
 
 # Build Next.js
