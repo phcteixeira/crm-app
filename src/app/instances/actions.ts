@@ -14,14 +14,24 @@ export async function createNewInstance(formData: FormData) {
     await createInstance(name, `${webhookUrl}/api/webhooks/evolution`)
 
     // 2. Connect to get QR
-    const connection = await connectInstance(name)
+    let connection = await connectInstance(name)
+    
+    // Sometimes v2 takes a split second to generate the QR. If it's not in the connect response, try fetching state.
+    if (!connection.base64) {
+      await new Promise(resolve => setTimeout(resolve, 1000)) // give it 1s
+      const { fetchConnectionState } = await import('@/services/evolutionApi')
+      const state = await fetchConnectionState(name)
+      if (state?.instance?.qr) {
+        connection = { base64: state.instance.qr, ...connection }
+      }
+    }
 
     // 4. Save to DB
     await prisma.instance.create({
       data: {
         name,
         status: 'connecting',
-        qrCode: connection.base64,
+        qrCode: connection.base64 || null,
         evolutionApiId: connection.instance?.instanceId || name
       }
     })

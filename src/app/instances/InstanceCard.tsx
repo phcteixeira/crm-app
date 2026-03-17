@@ -91,7 +91,11 @@ export function InstanceCard({ instance }: { instance: Instance }) {
           <div style={{ textAlign: 'center' }}>
             <p style={{ marginBottom: '10px', fontSize: '0.85rem' }}>Escaneie o QR Code</p>
             <div className="qr-container">
-              <img src={instance.qrCode} alt="QR Code" style={{ width: '150px', height: '150px' }} />
+              <img 
+                src={instance.qrCode.startsWith('data:image') ? instance.qrCode : `data:image/png;base64,${instance.qrCode}`} 
+                alt="QR Code" 
+                style={{ width: '150px', height: '150px' }} 
+              />
             </div>
           </div>
         ) : (
