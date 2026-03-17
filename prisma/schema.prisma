@@ -1,0 +1,46 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Instance {
+  id             String    @id @default(cuid())
+  name           String    @unique
+  status         String    @default("disconnected") // "connected", "disconnected", "connecting"
+  qrCode         String?
+  evolutionApiId String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  messages       Message[]
+}
+
+model Contact {
+  id             String    @id @default(cuid())
+  name           String?
+  phone          String    @unique
+  profilePicture String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  messages       Message[]
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  text       String?
+  status     String   @default("pending") // "sent", "delivered", "read", "error"
+  sender     String   // "me" ou "contact"
+  contactId  String
+  instanceId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  contact Contact  @relation(fields: [contactId], references: [id])
+  instance Instance @relation(fields: [instanceId], references: [id])
+}
