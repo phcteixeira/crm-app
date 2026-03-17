@@ -46,6 +46,12 @@ export const fetchConnectionState = async (instanceName: string) => {
   return response.data;
 };
 
+export const listInstances = async () => {
+  const response = await evolutionApi.get(`/instance/fetchInstances`);
+  return response.data;
+};
+
+
 export const sendTextMessage = async (instanceName: string, number: string, text: string) => {
   const response = await evolutionApi.post(`/message/sendText/${instanceName}`, {
     number,

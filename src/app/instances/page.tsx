@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { createNewInstance } from './actions'
 import { Plus } from 'lucide-react'
-import { InstanceCard } from './InstanceCard'
+import { InstanceCard, InstancesSyncManager } from './InstanceCard'
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +39,7 @@ export default async function InstancesPage() {
       </header>
 
       <div className="grid-cards">
+        <InstancesSyncManager />
         {instances.length === 0 ? (
           <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center', gridColumn: '1 / -1' }}>
             <p>Nenhuma instância cadastrada. Crie uma acima para começar.</p>

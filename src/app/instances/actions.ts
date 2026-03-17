@@ -82,3 +82,33 @@ export async function pollInstanceStatus(name: string) {
     return { error: 'Failed to poll status' }
   }
 }
+
+export async function syncInstancesWithEvolution() {
+  try {
+    const { listInstances } = await import('@/services/evolutionApi')
+    const evolutionData = await listInstances()
+
+    // Evolution API returns an array of instance objects
+    const evolutionNames: string[] = (evolutionData || []).map((i: { instance?: { instanceName?: string }; instanceName?: string }) => 
+      i.instance?.instanceName || i.instanceName || ''
+    ).filter((n: string) => n.length > 0)
+
+    // Find DB instances not present in Evolution and remove them
+    const dbInstances = await prisma.instance.findMany()
+    const toDelete = dbInstances.filter((i: { name: string }) => !evolutionNames.includes(i.name))
+
+    if (toDelete.length > 0) {
+      await prisma.instance.deleteMany({
+        where: { name: { in: toDelete.map(i => i.name) } }
+      })
+      revalidatePath('/instances')
+      return { synced: true, removed: toDelete.length }
+    }
+
+    return { synced: true, removed: 0 }
+  } catch (error: any) {
+    console.error('Sync failed:', error.message)
+    return { error: 'Failed to sync instances' }
+  }
+}
+
