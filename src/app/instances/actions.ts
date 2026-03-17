@@ -10,7 +10,10 @@ export async function createNewInstance(formData: FormData) {
 
   try {
     // 1. Create in Evolution API and Setup Webhooks
-    const webhookUrl = process.env.APP_URL || 'http://localhost:3000'
+    const domain = process.env.DOMAIN || process.env.APP_URL || 'localhost:3000'
+    const protocol = domain.includes('localhost') ? 'http' : 'https'
+    const webhookUrl = `${protocol}://${domain}`
+    
     await createInstance(name, `${webhookUrl}/api/webhooks/evolution`)
 
     // 2. Connect to get QR
@@ -98,9 +101,9 @@ export async function syncInstancesWithEvolution() {
     const { listInstances } = await import('@/services/evolutionApi')
     const evolutionData = await listInstances()
 
-    // Evolution API returns an array of instance objects
-    const evolutionNames: string[] = (evolutionData || []).map((i: { instance?: { instanceName?: string }; instanceName?: string }) => 
-      i.instance?.instanceName || i.instanceName || ''
+    // Evolution API v2 returns an array of objects with 'name' property
+    const evolutionNames: string[] = (evolutionData || []).map((i: any) => 
+      i.name || i.instance?.instanceName || i.instanceName || ''
     ).filter((n: string) => n.length > 0)
 
     // Find DB instances not present in Evolution and remove them
