@@ -9,6 +9,7 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - EVOLUTION_API_URL=${EVOLUTION_API_URL}
       - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
+      - PORT=${PORT:-3005}
     networks:
       - maracainet
     labels:
@@ -16,7 +17,7 @@ services:
       - "traefik.http.routers.crm-app.rule=Host(`crm.ckmedia.com.br`)"
       - "traefik.http.routers.crm-app.entrypoints=websecure"
       - "traefik.http.routers.crm-app.tls.certresolver=letsencrypt"
-      - "traefik.http.services.crm-app.loadbalancer.server.port=3000"
+      - "traefik.http.services.crm-app.loadbalancer.server.port=${PORT:-3005}"
 
 networks:
   maracainet:
