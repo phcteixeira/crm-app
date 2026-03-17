@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   app:
-    build: .
+    image: ghcr.io/phcteixeira/crm-app:latest
     container_name: crm-app
     restart: always
     environment:
