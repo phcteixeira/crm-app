@@ -2,17 +2,15 @@ version: '3.8'
 
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: .
     container_name: crm-app
     restart: always
     environment:
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}?sslmode=disable
       - EVOLUTION_API_URL=${EVOLUTION_API_URL}
       - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
-      - PORT=3000
     networks:
+      - internal
       - proxy
     labels:
       - "traefik.enable=true"
@@ -20,7 +18,26 @@ services:
       - "traefik.http.routers.crm-app.entrypoints=websecure"
       - "traefik.http.routers.crm-app.tls.certresolver=letsencrypt"
       - "traefik.http.services.crm-app.loadbalancer.server.port=3000"
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15-alpine
+    container_name: crm-db
+    restart: always
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
 
 networks:
+  internal:
   proxy:
     external: true
+
+volumes:
+  pgdata:
