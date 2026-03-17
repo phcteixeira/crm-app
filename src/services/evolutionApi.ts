@@ -19,7 +19,7 @@ export const createInstance = async (instanceName: string, webhookUrl: string) =
     webhook: {
       url: webhookUrl,
       byEvents: false,
-      base64: false,
+      base64: true, // <-- SET TO TRUE
       events: [
         "MESSAGES_UPSERT",
         "MESSAGES_UPDATE",
@@ -64,6 +64,8 @@ export const setWebhooks = async (instanceName: string, webhookUrl: string) => {
   const response = await evolutionApi.post(`/webhook/set/${instanceName}`, {
     enabled: true,
     url: webhookUrl,
+    byEvents: false,
+    base64: true,
     events: [
       "MESSAGES_UPSERT",
       "MESSAGES_UPDATE",
