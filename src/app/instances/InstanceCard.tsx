@@ -124,7 +124,7 @@ export function InstancesSyncManager() {
     // Sync immediately on mount, then every 10 seconds
     const doSync = async () => {
       const res = await syncInstancesWithEvolution()
-      if ('removed' in res && res.removed > 0) {
+      if (res && 'removed' in res && (res as any).removed > 0) {
         router.refresh()
       }
     }
