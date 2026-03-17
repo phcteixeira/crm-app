@@ -6,38 +6,18 @@ services:
     container_name: crm-app
     restart: always
     environment:
-      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}?sslmode=disable
+      - DATABASE_URL=${DATABASE_URL}
       - EVOLUTION_API_URL=${EVOLUTION_API_URL}
       - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
     networks:
-      - internal
-      - proxy
+      - maracainet
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.crm-app.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.crm-app.rule=Host(`crm.ckmedia.com.br`)"
       - "traefik.http.routers.crm-app.entrypoints=websecure"
       - "traefik.http.routers.crm-app.tls.certresolver=letsencrypt"
       - "traefik.http.services.crm-app.loadbalancer.server.port=3000"
-    depends_on:
-      - db
-
-  db:
-    image: postgres:15-alpine
-    container_name: crm-db
-    restart: always
-    environment:
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=${DB_NAME}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    networks:
-      - internal
 
 networks:
-  internal:
-  proxy:
+  maracainet:
     external: true
-
-volumes:
-  pgdata:
