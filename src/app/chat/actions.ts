@@ -11,11 +11,12 @@ const messageQueue = new Queue('message-queue', {
   connection: {
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT || '6379'),
+    maxRetriesPerRequest: null,
   }
 })
 
 export async function getConversations() {
-  const conversations = await prisma.conversation.findMany({
+  const conversations = await (prisma as any).conversation.findMany({
     include: {
       contact: true,
       inbox: true,
@@ -32,7 +33,7 @@ export async function getConversations() {
 }
 
 export async function getMessages(conversationId: string) {
-  const messages = await prisma.message.findMany({
+  const messages = await (prisma as any).message.findMany({
     where: { conversationId },
     orderBy: { createdAt: 'asc' },
   })
@@ -45,7 +46,7 @@ export async function sendMessage(formData: FormData) {
 
   if (!conversationId || !text) return { error: 'Missing fields' }
 
-  const conversation = await prisma.conversation.findUnique({ 
+  const conversation = await (prisma as any).conversation.findUnique({ 
     where: { id: conversationId },
     include: { contact: true, inbox: true }
   })
@@ -54,7 +55,7 @@ export async function sendMessage(formData: FormData) {
 
   try {
     // 1. Save to DB with 'enqueued' status (Instant feedback for User)
-    const newMessage = await prisma.message.create({
+    const newMessage = await (prisma as any).message.create({
       data: {
         text,
         status: 'enqueued',

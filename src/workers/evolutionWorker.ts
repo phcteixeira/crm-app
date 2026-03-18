@@ -4,7 +4,9 @@ import { prisma } from '../lib/prisma';
 import Redis from 'ioredis';
 import Pusher from 'pusher';
 
-const connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+const connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+  maxRetriesPerRequest: null,
+});
 
 // Configure Pusher (Soketi) for real-time updates
 const pusher = new Pusher({
