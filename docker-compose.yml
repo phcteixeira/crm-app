@@ -20,6 +20,53 @@ services:
       - "traefik.http.routers.crm-app.tls.certresolver=letsencrypt"
       - "traefik.http.services.crm-app.loadbalancer.server.port=${PORT:-3005}"
 
+  # Redis for Background Jobs (BullMQ) and Soketi Pub/Sub
+  redis:
+    image: redis:7-alpine
+    container_name: crm-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - crm_redis_data:/data
+    networks:
+      - maracainet
+
+  # Soketi for real-time WebSockets (ActionCable replacement)
+  soketi:
+    image: quay.io/soketi/soketi:1.6-16-debian
+    container_name: crm-soketi
+    restart: always
+    environment:
+      - SOKETI_DEBUG=1
+      - SOKETI_DEFAULT_APP_ID=crm-app
+      - SOKETI_DEFAULT_APP_KEY=soketi-crm-key
+      - SOKETI_DEFAULT_APP_SECRET=soketi-crm-secret
+    ports:
+      - "6001:6001"
+      - "9601:9601"
+    networks:
+      - maracainet
+
+  # Background Worker (Sidekiq replacement)
+  worker:
+    image: ${APP_IMAGE:-ghcr.io/phcteixeira/crm-app:latest}
+    container_name: crm-worker
+    restart: always
+    command: npm run worker
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - EVOLUTION_API_URL=${EVOLUTION_API_URL}
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    networks:
+      - maracainet
+
+volumes:
+  crm_redis_data:
+
 networks:
   maracainet:
     external: true

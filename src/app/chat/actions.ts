@@ -4,9 +4,21 @@ import { prisma } from '@/lib/prisma'
 import { sendTextMessage } from '@/services/evolutionApi'
 import { revalidatePath } from 'next/cache'
 
-export async function getContacts() {
-  const contacts = await prisma.contact.findMany({
+// To be implemented: BullMQ producer setup
+import { Queue } from 'bullmq'
+
+const messageQueue = new Queue('message-queue', {
+  connection: {
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT || '6379'),
+  }
+})
+
+export async function getConversations() {
+  const conversations = await prisma.conversation.findMany({
     include: {
+      contact: true,
+      inbox: true,
       messages: {
         orderBy: { createdAt: 'desc' },
         take: 1,
@@ -16,51 +28,53 @@ export async function getContacts() {
       updatedAt: 'desc'
     }
   })
-  return contacts
+  return conversations
 }
 
-export async function getMessages(contactId: string) {
+export async function getMessages(conversationId: string) {
   const messages = await prisma.message.findMany({
-    where: { contactId },
+    where: { conversationId },
     orderBy: { createdAt: 'asc' },
   })
   return messages
 }
 
 export async function sendMessage(formData: FormData) {
-  const contactId = formData.get('contactId') as string
+  const conversationId = formData.get('conversationId') as string
   const text = formData.get('text') as string
-  const instanceName = formData.get('instanceName') as string
 
-  if (!contactId || !text || !instanceName) return { error: 'Missing fields' }
+  if (!conversationId || !text) return { error: 'Missing fields' }
 
-  const contact = await prisma.contact.findUnique({ where: { id: contactId } })
-  if (!contact) return { error: 'Contact not found' }
-
-  const dbInstance = await prisma.instance.findFirst({
-    where: { name: instanceName }
+  const conversation = await prisma.conversation.findUnique({ 
+    where: { id: conversationId },
+    include: { contact: true, inbox: true }
   })
-  if (!dbInstance) return { error: 'Instance not found' }
+  
+  if (!conversation) return { error: 'Conversation not found' }
 
   try {
-    // Send via Evolution API
-    await sendTextMessage(instanceName, contact.phone, text)
-
-    // Save to DB
-    await prisma.message.create({
+    // 1. Save to DB with 'enqueued' status (Instant feedback for User)
+    const newMessage = await prisma.message.create({
       data: {
         text,
-        status: 'sent',
-        sender: 'me',
-        contactId: contact.id,
-        instanceId: dbInstance.id,
+        status: 'enqueued',
+        senderType: 'agent',
+        conversationId: conversation.id,
       }
+    })
+
+    // 2. Add to BullMQ Queue to process in background (No more waiting for Evolution API)
+    await messageQueue.add('sendTextMessage', {
+      messageId: newMessage.id,
+      inboxName: conversation.inbox.name,
+      contactIdentifier: conversation.contact.identifier,
+      text: text
     })
 
     revalidatePath(`/chat`)
     return { success: true }
   } catch (error: any) {
-    console.error('Failed to send message:', error.response?.data || error.message)
-    return { error: 'Failed to send message' }
+    console.error('Failed to enqueue message:', error.message)
+    return { error: 'Failed to enqueue message' }
   }
 }

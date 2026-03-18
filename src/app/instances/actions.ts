@@ -32,12 +32,15 @@ export async function createNewInstance(formData: FormData) {
     }
 
     // 4. Save to DB
-    await prisma.instance.create({
+    await prisma.inbox.create({
       data: {
         name,
+        channelType: 'whatsapp',
         status: 'connecting',
-        qrCode: connection.base64 || null,
-        evolutionApiId: connection.instance?.instanceId || name
+        credentials: {
+          qrCode: connection.base64 || null,
+          evolutionApiId: connection.instance?.instanceId || name
+        }
       }
     })
 
@@ -55,7 +58,7 @@ export async function removeInstance(name: string) {
     await deleteInstance(name)
     
     // 2. Delete from DB
-    await prisma.instance.delete({
+    await prisma.inbox.delete({
       where: { name }
     })
 
@@ -78,14 +81,20 @@ export async function pollInstanceStatus(name: string) {
       if (state === 'open') newStatus = 'connected'
       if (state === 'close') newStatus = 'disconnected'
 
-      const dbInstance = await prisma.instance.findUnique({ where: { name } })
+      const dbInbox = await prisma.inbox.findUnique({ where: { name } })
       
-      if (dbInstance && dbInstance.status !== newStatus) {
-        await prisma.instance.update({
+      if (dbInbox && dbInbox.status !== newStatus) {
+        
+        let newCreds: any = typeof dbInbox.credentials === 'string' ? JSON.parse(dbInbox.credentials) : (dbInbox.credentials || {});
+        if (state === 'open') {
+          newCreds.qrCode = null;
+        }
+
+        await prisma.inbox.update({
           where: { name },
           data: { 
             status: newStatus,
-            qrCode: state === 'open' ? null : dbInstance.qrCode
+            credentials: newCreds
           }
         })
         revalidatePath('/instances')
@@ -108,12 +117,12 @@ export async function syncInstancesWithEvolution() {
       i.name || i.instance?.instanceName || i.instanceName || ''
     ).filter((n: string) => n.length > 0)
 
-    // Find DB instances not present in Evolution and remove them
-    const dbInstances = await prisma.instance.findMany()
-    const toDelete = dbInstances.filter((i: { name: string }) => !evolutionNames.includes(i.name))
+    // Find DB inboxes not present in Evolution and remove them
+    const dbInboxes = await prisma.inbox.findMany()
+    const toDelete = dbInboxes.filter((i: { name: string }) => !evolutionNames.includes(i.name))
 
     if (toDelete.length > 0) {
-      await prisma.instance.deleteMany({
+      await prisma.inbox.deleteMany({
         where: { name: { in: toDelete.map(i => i.name) } }
       })
       revalidatePath('/instances')

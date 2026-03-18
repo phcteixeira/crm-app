@@ -1,0 +1,6 @@
+event: connected
+data: {"status":"ok"}
+
+event: NEW_MESSAGE
+data: {"id":"WID_8a2db23fd141f4a4","text":"Gostaria de marcar uma reunião amanhã.","status":"received","sender":"contact","contactId":"cmmv9f5rg0007ia0rxderm0sk","instanceId":"cmmv9csim0005ia0r8g97uldj","createdAt":"2026-03-18T00:00:12.711Z","updatedAt":"2026-03-18T00:00:12.711Z"}
+

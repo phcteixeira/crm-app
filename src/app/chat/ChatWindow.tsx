@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Send } from 'lucide-react'
 import { getMessages, sendMessage } from './actions'
+import Pusher from 'pusher-js'
 
 type Message = {
   id: string
@@ -14,14 +15,14 @@ type Message = {
 }
 
 type Props = {
-  contactId: string
+  conversationId: string
   contactName: string | null
-  contactPhone: string
-  instanceName: string
+  contactIdentifier: string
+  inboxName: string
   initialMessages: Message[]
 }
 
-export function ChatWindow({ contactId, contactName, contactPhone, instanceName, initialMessages }: Props) {
+export function ChatWindow({ conversationId, contactName, contactIdentifier, inboxName, initialMessages }: Props) {
   const router = useRouter()
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [text, setText] = useState('')
@@ -29,22 +30,31 @@ export function ChatWindow({ contactId, contactName, contactPhone, instanceName,
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const loadMessages = async () => {
-    const msgs = await getMessages(contactId)
+    const msgs = await getMessages(conversationId)
     setMessages(msgs as any)
   }
 
-  // Re-initialize messages when contact changes (new initialMessages from server)
+  // Re-initialize messages when conversation changes (new initialMessages from server)
   useEffect(() => {
     setMessages(initialMessages)
-  }, [contactId, initialMessages])
+  }, [conversationId, initialMessages])
 
   useEffect(() => {
-    const eventSource = new EventSource('/api/events')
+    // Configure Soketi / Pusher Client
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_SOKETI_APP_KEY || 'soketi-crm-key', {
+      wsHost: process.env.NEXT_PUBLIC_SOKETI_HOST || 'localhost',
+      wsPort: parseInt(process.env.NEXT_PUBLIC_SOKETI_PORT || '6001'),
+      forceTLS: false,
+      disableStats: true,
+      enabledTransports: ['ws', 'wss'],
+      cluster: 'us-east-1' // Not used by Soketi, but required by pusher-js
+    });
 
-    eventSource.addEventListener('NEW_MESSAGE', (e) => {
+    const channel = pusher.subscribe(`conversation-${conversationId}`);
+
+    channel.bind('NEW_MESSAGE', (newMsg: any) => {
       try {
-        const newMsg = JSON.parse(e.data)
-        if (newMsg.contactId === contactId) {
+        if (newMsg.conversationId === conversationId) {
           setMessages(prev => {
             if (prev.some(m => m.id === newMsg.id)) return prev
             return [...prev, newMsg]
@@ -52,22 +62,32 @@ export function ChatWindow({ contactId, contactName, contactPhone, instanceName,
         }
         router.refresh()
       } catch (err) {}
-    })
+    });
 
-    eventSource.addEventListener('MESSAGE_STATUS_UPDATE', (e) => {
+    channel.bind('MESSAGE_STATUS_UPDATE', (updateData: any) => {
       try {
-        const updateData = JSON.parse(e.data)
         setMessages(prev => prev.map(m => 
           m.id === updateData.messageId ? { ...m, status: updateData.status } : m
         ))
         router.refresh()
       } catch (err) {}
-    })
+    });
 
     return () => {
-      eventSource.close()
+      channel.unbind_all();
+      pusher.unsubscribe(`conversation-${conversationId}`);
+      pusher.disconnect();
     }
-  }, [contactId])
+  }, [conversationId])
+
+  // Bulletproof fallback: poll for new messages every 5 seconds 
+  // (In Next.js Dev Mode, EventEmitters often fail across requests due to isolated workers)
+  useEffect(() => {
+    const intervalId = setInterval(async () => {
+      await loadMessages()
+    }, 5000)
+    return () => clearInterval(intervalId)
+  }, [conversationId])
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -77,9 +97,9 @@ export function ChatWindow({ contactId, contactName, contactPhone, instanceName,
   const handleSend = () => {
     if (!text.trim()) return
     const fd = new FormData()
-    fd.append('contactId', contactId)
+    fd.append('conversationId', conversationId)
     fd.append('text', text)
-    fd.append('instanceName', instanceName)
+    fd.append('inboxName', inboxName)
 
     startTransition(async () => {
       setText('')
@@ -99,10 +119,10 @@ export function ChatWindow({ contactId, contactName, contactPhone, instanceName,
     <div className="chat-window">
       {/* Header */}
       <div className="chat-header">
-        <div className="contact-avatar">{(contactName || contactPhone)[0]?.toUpperCase()}</div>
+        <div className="contact-avatar">{(contactName || contactIdentifier || "?")[0]?.toUpperCase()}</div>
         <div>
-          <div className="contact-name">{contactName || contactPhone}</div>
-          <div className="contact-phone">{contactPhone}</div>
+          <div className="contact-name">{contactName || contactIdentifier}</div>
+          <div className="contact-phone">{contactIdentifier}</div>
         </div>
       </div>
 

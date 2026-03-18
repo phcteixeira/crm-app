@@ -6,7 +6,7 @@ import { InstanceCard, InstancesSyncManager } from './InstanceCard'
 export const dynamic = 'force-dynamic';
 
 export default async function InstancesPage() {
-  const instances = await prisma.instance.findMany({
+  const instances = await prisma.inbox.findMany({
     orderBy: { createdAt: 'desc' }
   })
 

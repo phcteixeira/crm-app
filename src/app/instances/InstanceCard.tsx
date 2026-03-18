@@ -9,7 +9,7 @@ type Instance = {
   id: string
   name: string
   status: string
-  qrCode: string | null
+  credentials?: any
 }
 
 // ─── Delete Confirmation Modal ──────────────────────────────────────────────
@@ -87,12 +87,12 @@ export function InstanceCard({ instance }: { instance: Instance }) {
           </span>
         </div>
 
-        {instance.status === 'connecting' && instance.qrCode ? (
+        {instance.status === 'connecting' && instance.credentials?.qrCode ? (
           <div style={{ textAlign: 'center' }}>
             <p style={{ marginBottom: '10px', fontSize: '0.85rem' }}>Escaneie o QR Code</p>
             <div className="qr-container">
               <img 
-                src={instance.qrCode.startsWith('data:image') ? instance.qrCode : `data:image/png;base64,${instance.qrCode}`} 
+                src={instance.credentials.qrCode.startsWith('data:image') ? instance.credentials.qrCode : `data:image/png;base64,${instance.credentials.qrCode}`} 
                 alt="QR Code" 
                 style={{ width: '150px', height: '150px' }} 
               />

@@ -1,7 +1,16 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { eventEmitter, CHAT_EVENTS } from '@/lib/events';
+import Pusher from 'pusher';
 
+const pusher = new Pusher({
+  appId: process.env.SOKETI_DEFAULT_APP_ID || 'crm-app',
+  key: process.env.SOKETI_DEFAULT_APP_KEY || 'soketi-crm-key',
+  secret: process.env.SOKETI_DEFAULT_APP_SECRET || 'soketi-crm-secret',
+  cluster: 'us-east-1',
+  useTLS: false,
+  host: process.env.SOKETI_HOST || '127.0.0.1',
+  port: process.env.SOKETI_PORT || '6001',
+});
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -17,17 +26,15 @@ export async function POST(request: Request) {
       let newStatus = 'connecting';
       if (state === 'open') newStatus = 'connected';
       if (state === 'close') newStatus = 'disconnected';
-
-      // Update the instance status
-      await prisma.instance.updateMany({
+      // Update the Inbox status
+      await prisma.inbox.updateMany({
         where: { name: instance },
         data: { 
           status: newStatus,
-          // optionally clear qrCode if connected
-          qrCode: state === 'open' ? null : undefined 
         }
       });
-      eventEmitter.emit(CHAT_EVENTS.CONNECTION_UPDATE, { instance, status: newStatus });
+      
+      await pusher.trigger('system-events', 'CONNECTION_UPDATE', { instance, status: newStatus });
     }
 
     // 2. Incoming Messages
@@ -41,16 +48,21 @@ export async function POST(request: Request) {
       const text = messageData.message?.conversation || messageData.message?.extendedTextMessage?.text || '';
       const messageId = messageData.key.id;
       const fromMe = messageData.key.fromMe;
-
-      let dbInstance = await prisma.instance.findUnique({ where: { name: instance } });
-      if (!dbInstance) {
-        dbInstance = await prisma.instance.create({ data: { name: instance, status: 'connected' } });
+      let inbox = await prisma.inbox.findUnique({ where: { name: instance } });
+      if (!inbox) {
+        inbox = await prisma.inbox.create({ data: { name: instance, status: 'connected' } });
       }
 
-      let contact = await prisma.contact.findUnique({ where: { phone } });
+      let contact = await prisma.contact.findUnique({ where: { identifier: phone } });
       if (!contact) {
-        contact = await prisma.contact.create({ data: { phone, name: senderName } });
+        contact = await prisma.contact.create({ data: { identifier: phone, name: senderName } });
       }
+
+      const conversation = await prisma.conversation.upsert({
+        where: { inboxId_contactId: { inboxId: inbox.id, contactId: contact.id } },
+        update: {},
+        create: { inboxId: inbox.id, contactId: contact.id, status: 'open' }
+      });
 
       const newMessage = await prisma.message.upsert({
         where: { id: messageId },
@@ -59,12 +71,12 @@ export async function POST(request: Request) {
           id: messageId,
           text,
           status: fromMe ? 'sent' : 'received',
-          sender: fromMe ? 'me' : 'contact',
-          contactId: contact.id,
-          instanceId: dbInstance.id,
+          senderType: fromMe ? 'agent' : 'contact',
+          conversationId: conversation.id,
         }
       });
-      eventEmitter.emit(CHAT_EVENTS.NEW_MESSAGE, newMessage);
+      
+      await pusher.trigger(`conversation-${conversation.id}`, 'NEW_MESSAGE', newMessage);
     }
 
     // 3. Message Status Updates (Delivered, Read)
@@ -82,7 +94,13 @@ export async function POST(request: Request) {
           where: { id: messageId },
           data: { status: newStatus }
         });
-        eventEmitter.emit(CHAT_EVENTS.MESSAGE_STATUS_UPDATE, { messageId, status: newStatus });
+        const updatedMsg = await prisma.message.findUnique({ where: { id: messageId } });
+        if (updatedMsg) {
+          await pusher.trigger(`conversation-${updatedMsg.conversationId}`, 'MESSAGE_STATUS_UPDATE', { 
+            messageId, 
+            status: newStatus 
+          });
+        }
       }
     }
 
