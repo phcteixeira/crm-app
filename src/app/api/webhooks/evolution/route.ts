@@ -76,7 +76,11 @@ export async function POST(request: Request) {
         }
       });
       
-      await pusher.trigger(`conversation-${conversation.id}`, 'NEW_MESSAGE', newMessage);
+      try {
+        await pusher.trigger(`conversation-${conversation.id}`, 'NEW_MESSAGE', newMessage);
+      } catch (pusherError: any) {
+        console.error('Pusher notification failed:', pusherError.message);
+      }
     }
 
     // 3. Message Status Updates (Delivered, Read)
@@ -96,17 +100,21 @@ export async function POST(request: Request) {
         });
         const updatedMsg = await prisma.message.findUnique({ where: { id: messageId } });
         if (updatedMsg) {
-          await pusher.trigger(`conversation-${updatedMsg.conversationId}`, 'MESSAGE_STATUS_UPDATE', { 
-            messageId, 
-            status: newStatus 
-          });
+          try {
+            await pusher.trigger(`conversation-${updatedMsg.conversationId}`, 'MESSAGE_STATUS_UPDATE', { 
+              messageId, 
+              status: newStatus 
+            });
+          } catch (pusherError: any) {
+            console.error('Pusher status update failed:', pusherError.message);
+          }
         }
       }
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Webhook error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }
