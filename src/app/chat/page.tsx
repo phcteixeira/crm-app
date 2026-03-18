@@ -2,12 +2,17 @@ import { prisma } from '@/lib/prisma'
 import { ChatWindow } from './ChatWindow'
 import { PhoneCall, MessageSquare } from 'lucide-react'
 import { redirect } from 'next/navigation'
+import { auth } from '@/auth'
+import { RealtimeSidebar } from './RealtimeSidebar'
 
 export const dynamic = 'force-dynamic'
 
 export default async function ChatPage({ searchParams }: { searchParams: Promise<any> }) {
   const params = await searchParams
-  const conversations = await prisma.conversation.findMany({
+  const session = await auth()
+  if (!session?.user?.id) redirect('/login')
+
+  const conversations = await (prisma as any).conversation.findMany({
     include: {
       contact: true,
       inbox: true,
@@ -43,6 +48,9 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
 
   return (
     <div className="chat-layout">
+      {/* Real-time Side-effect Listener */}
+      {session?.user?.id && <RealtimeSidebar userId={session.user.id} />}
+      
       {/* SIDEBAR */}
       <aside className="chat-sidebar glass-panel">
         <div className="sidebar-header">

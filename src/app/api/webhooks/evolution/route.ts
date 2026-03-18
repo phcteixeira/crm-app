@@ -101,6 +101,14 @@ export async function POST(request: Request) {
       
       try {
         await pusher.trigger(`conversation-${conversation.id}`, 'NEW_MESSAGE', newMessage);
+        // Also notify the user's global chat channel to refresh the sidebar
+        if (inbox.userId) {
+          await pusher.trigger(`user-${inbox.userId}-events`, 'CONVERSATION_UPDATE', {
+            conversationId: conversation.id,
+            lastMessage: newMessage.text,
+            contactName: contact.name
+          });
+        }
       } catch (pusherError: any) {
         console.error('Pusher notification failed:', pusherError.message);
       }
