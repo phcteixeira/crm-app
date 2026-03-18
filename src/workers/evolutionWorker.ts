@@ -1,5 +1,5 @@
 import { Worker, Job } from 'bullmq';
-import { sendTextMessage, sendAudioMessage } from '../services/evolutionApi';
+import { sendTextMessage, sendAudioMessage, sendMediaMessage } from '../services/evolutionApi';
 import { prisma } from '../lib/prisma';
 import Redis from 'ioredis';
 import Pusher from 'pusher';
@@ -90,6 +90,38 @@ const worker = new Worker('message-queue', async (job: Job) => {
       });
 
       throw new Error(`Failed to send audio: ${error.message}`);
+    }
+  } else if (job.name === 'sendMediaMessage') {
+    const { messageId, inboxName, contactIdentifier, mediaBase64, mediaType, fileName, evoUrl, evoKey } = job.data;
+
+    try {
+      // 1. Fire HTTP to Evolution API
+      await sendMediaMessage(inboxName, contactIdentifier, mediaBase64, mediaType, fileName, evoUrl, evoKey);
+      
+      // 2. Mark as sent internally
+      const updatedMessage = await (prisma as any).message.update({
+        where: { id: messageId },
+        data: { status: 'sent' }
+      });
+
+      // 3. Inform Frontend via WebSocket
+      await pusher.trigger(
+        `conversation-${(updatedMessage as any).conversationId}`,
+        'MESSAGE_STATUS_UPDATE',
+        { messageId: updatedMessage.id, status: 'sent' }
+      );
+
+      console.log(`[Worker] Job ${job.id} completed. ${mediaType} sent.`);
+
+    } catch (error: any) {
+      console.error(`[Worker] Job ${job.id} failed:`, error.message);
+      
+      await (prisma as any).message.update({
+        where: { id: messageId },
+        data: { status: 'error' }
+      });
+
+      throw new Error(`Failed to send ${mediaType}: ${error.message}`);
     }
   }
 }, { connection: connection as any });

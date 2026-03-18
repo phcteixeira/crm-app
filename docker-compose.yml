@@ -25,6 +25,8 @@ services:
       - soketi
     networks:
       - maracainet
+    volumes:
+      - crm_uploads:/app/public/uploads
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.crm-app.rule=Host(`crm.ckmedia.com.br`)"
@@ -90,6 +92,7 @@ services:
 
 volumes:
   crm_redis_data:
+  crm_uploads:
 
 networks:
   maracainet:

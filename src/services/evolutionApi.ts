@@ -75,13 +75,40 @@ export const sendTextMessage = async (instanceName: string, number: string, text
 
 export const sendAudioMessage = async (instanceName: string, number: string, audioBase64: string, customUrl?: string, customKey?: string) => {
   const api = getApiClient(customUrl, customKey);
-  // Strip the 'data:audio/webm;base64,' prefix just in case Evolution API prefers raw base64
+  // Strip the prefix if present
   const base64Data = audioBase64.includes('base64,') ? audioBase64.split('base64,')[1] : audioBase64;
   const response = await api.post(`/message/sendWhatsAppAudio/${instanceName}`, {
     number,
     audio: base64Data,
     encoding: true
   });
+  return response.data;
+};
+
+export const sendMediaMessage = async (
+  instanceName: string, 
+  number: string, 
+  mediaBase64: string, 
+  mediaType: 'image' | 'video' | 'document',
+  fileName?: string,
+  customUrl?: string,
+  customKey?: string
+) => {
+  const api = getApiClient(customUrl, customKey);
+  const base64Data = mediaBase64.includes('base64,') ? mediaBase64.split('base64,')[1] : mediaBase64;
+  const mimeType = mediaBase64.includes('data:') ? mediaBase64.split(';')[0].split(':')[1] : (mediaType === 'image' ? 'image/png' : 'application/pdf');
+
+  const endpoint = mediaType === 'image' ? 'sendImage' : (mediaType === 'video' ? 'sendVideo' : 'sendDocument');
+
+  const payload: any = {
+    number,
+    media: base64Data,
+    fileName: fileName || `file-${Date.now()}`,
+    mediatype: mediaType
+  };
+
+  // Evolution API v2 specific adjustment if needed, but usually it follows this pattern:
+  const response = await api.post(`/message/${endpoint}/${instanceName}`, payload);
   return response.data;
 };
 

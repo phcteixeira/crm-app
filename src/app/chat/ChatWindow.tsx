@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Send, Mic, Square } from 'lucide-react'
-import { getMessages, sendMessage, sendAudio } from './actions'
+import { Send, Mic, Square, Paperclip, File, Image as ImageIcon } from 'lucide-react'
+import { getMessages, sendMessage, sendAudio, sendMedia } from './actions'
 import Pusher from 'pusher-js'
 
 type Message = {
@@ -33,6 +33,7 @@ export function ChatWindow({ conversationId, contactName, contactIdentifier, inb
   const bottomRef = useRef<HTMLDivElement>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const loadMessages = async () => {
     const msgs = await getMessages(conversationId)
@@ -175,6 +176,35 @@ export function ChatWindow({ conversationId, contactName, contactIdentifier, inb
       setIsRecording(false)
     }
   }
+  const handleFileClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.readAsDataURL(file)
+    reader.onloadend = async () => {
+      const base64 = reader.result as string
+      let mediaType: 'image' | 'video' | 'document' = 'document'
+      
+      if (file.type.startsWith('image/')) mediaType = 'image'
+      else if (file.type.startsWith('video/')) mediaType = 'video'
+
+      const fd = new FormData()
+      fd.append('conversationId', conversationId)
+      fd.append('media', base64)
+      fd.append('mediaType', mediaType)
+      fd.append('fileName', file.name)
+
+      startTransition(async () => {
+        await sendMedia(fd)
+        await loadMessages()
+      })
+    }
+  }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -253,6 +283,24 @@ export function ChatWindow({ conversationId, contactName, contactIdentifier, inb
             Gravando áudio...
           </div>
         )}
+        
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          onChange={handleFileChange} 
+          style={{ display: 'none' }} 
+          accept="image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt"
+        />
+
+        <button
+          className="btn-ghost"
+          onClick={handleFileClick}
+          disabled={isPending || isRecording}
+          title="Anexar arquivo"
+          style={{ padding: '8px', color: 'var(--text-secondary)' }}
+        >
+          <Paperclip size={20} />
+        </button>
         
         {text.trim() ? (
           <button

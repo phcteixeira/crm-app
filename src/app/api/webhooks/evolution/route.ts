@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import Pusher from 'pusher';
+import { saveFile } from '@/lib/storage';
 
 const pusher = new Pusher({
   appId: process.env.SOKETI_DEFAULT_APP_ID || 'crm-app',
@@ -65,7 +66,17 @@ export async function POST(request: Request) {
            const nestedMsg = data.message?.message || {};
            const mediaObj = nestedMsg.imageMessage || nestedMsg.audioMessage || nestedMsg.videoMessage || nestedMsg.documentMessage || nestedMsg.stickerMessage || {};
            const mimetype = mediaObj.mimetype || 'application/octet-stream';
-           mediaUrl = `data:${mimetype};base64,${data.message.base64}`;
+           
+           // PERFORMANCE: Save file to disk instead of using base64 data URL
+           try {
+             const fileName = `${messageId}-${Date.now()}`;
+             const savedUrl = await saveFile(`data:${mimetype};base64,${data.message.base64}`, fileName);
+             mediaUrl = savedUrl;
+           } catch (saveError: any) {
+             console.error('Failed to save media file:', saveError.message);
+             // Fallback to data URL if save fails (optional, but for performance we might skip)
+             mediaUrl = `data:${mimetype};base64,${data.message.base64}`;
+           }
         }
       }
       

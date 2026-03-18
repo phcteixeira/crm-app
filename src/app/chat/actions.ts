@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { sendTextMessage } from '@/services/evolutionApi'
+import { saveFile } from '@/lib/storage'
 import { revalidatePath } from 'next/cache'
 
 // To be implemented: BullMQ producer setup
@@ -134,5 +135,61 @@ export async function sendAudio(formData: FormData) {
   } catch (error: any) {
     console.error('Failed to enqueue audio message:', error.message)
     return { error: 'Failed to enqueue audio message' }
+  }
+}
+export async function sendMedia(formData: FormData) {
+  const conversationId = formData.get('conversationId') as string
+  const mediaBase64 = formData.get('media') as string
+  const mediaType = formData.get('mediaType') as 'image' | 'video' | 'document'
+  const fileName = formData.get('fileName') as string || 'file'
+
+  if (!conversationId || !mediaBase64 || !mediaType) return { error: 'Missing fields' }
+
+  const conversation = await (prisma as any).conversation.findUnique({ 
+    where: { id: conversationId },
+    include: { contact: true, inbox: true }
+  })
+  
+  if (!conversation) return { error: 'Conversation not found' }
+
+  try {
+    // 0. Get user settings
+    const settings = await (prisma as any).userSettings.findUnique({
+      where: { userId: conversation.inbox.userId }
+    })
+    const evoUrl = settings?.evolutionApiUrl || process.env.EVOLUTION_API_URL
+    const evoKey = settings?.evolutionApiKey || process.env.EVOLUTION_API_KEY
+
+    // 1. Save locally for instant display and persistence
+    const savedUrl = await saveFile(mediaBase64)
+
+    // 2. Create in DB
+    const newMessage = await (prisma as any).message.create({
+      data: {
+        status: 'enqueued',
+        senderType: 'agent',
+        conversationId: conversation.id,
+        mediaType: mediaType,
+        mediaUrl: savedUrl
+      }
+    })
+
+    // 3. Queue for Evolution API
+    await messageQueue.add('sendMediaMessage', {
+      messageId: newMessage.id,
+      inboxName: conversation.inbox.name,
+      contactIdentifier: conversation.contact.identifier,
+      mediaBase64: mediaBase64, // We still need the base64 to send to Evolution
+      mediaType: mediaType,
+      fileName: fileName,
+      evoUrl,
+      evoKey
+    })
+
+    revalidatePath(`/chat`)
+    return { success: true }
+  } catch (error: any) {
+    console.error('Failed to enqueue media message:', error.message)
+    return { error: 'Failed to enqueue media message' }
   }
 }
