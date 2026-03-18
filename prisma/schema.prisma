@@ -42,6 +42,6 @@ model Message {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  contact Contact  @relation(fields: [contactId], references: [id])
-  instance Instance @relation(fields: [instanceId], references: [id])
+  contact Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
 }
