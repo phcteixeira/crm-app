@@ -10,7 +10,9 @@ export async function createNewInstance(formData: FormData) {
 
   try {
     // 1. Create in Evolution API and Setup Webhooks
-    const domain = process.env.DOMAIN || process.env.APP_URL || 'localhost:3000'
+    let domain = process.env.DOMAIN || process.env.APP_URL || 'localhost:3005'
+    // Remove protocol and trailing slashes if the user accidentally included them in the .env
+    domain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '')
     const protocol = domain.includes('localhost') ? 'http' : 'https'
     const webhookUrl = `${protocol}://${domain}`
     
