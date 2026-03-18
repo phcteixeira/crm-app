@@ -21,7 +21,7 @@ export async function createNewInstance(formData: FormData) {
 
   try {
     // 0. Get user settings
-    const settings = await prisma.userSettings.findUnique({ where: { userId: session.user.id } })
+    const settings = await (prisma as any).userSettings.findUnique({ where: { userId: session.user.id } })
     const evoUrl = settings?.evolutionApiUrl || process.env.EVOLUTION_API_URL
     const evoKey = settings?.evolutionApiKey || process.env.EVOLUTION_API_KEY
 
@@ -78,7 +78,7 @@ export async function removeInstance(name: string) {
     if (!dbInbox || dbInbox.userId !== session.user.id) return { error: 'Unauthorized' }
 
     // 0. Get user settings
-    const settings = await prisma.userSettings.findUnique({ where: { userId: session.user.id } })
+    const settings = await (prisma as any).userSettings.findUnique({ where: { userId: session.user.id } })
     const evoUrl = settings?.evolutionApiUrl || process.env.EVOLUTION_API_URL
     const evoKey = settings?.evolutionApiKey || process.env.EVOLUTION_API_KEY
 
@@ -104,7 +104,7 @@ export async function pollInstanceStatus(name: string) {
     if (!session?.user?.id) return { error: 'Unauthorized' }
 
     // 0. Get user settings
-    const settings = await prisma.userSettings.findUnique({ where: { userId: session.user.id } })
+    const settings = await (prisma as any).userSettings.findUnique({ where: { userId: session.user.id } })
     const evoUrl = settings?.evolutionApiUrl || process.env.EVOLUTION_API_URL
     const evoKey = settings?.evolutionApiKey || process.env.EVOLUTION_API_KEY
 
@@ -148,7 +148,7 @@ export async function syncInstancesWithEvolution() {
     if (!session?.user?.id) return { error: 'Unauthorized' }
 
     // 0. Get user settings
-    const settings = await prisma.userSettings.findUnique({ where: { userId: session.user.id } })
+    const settings = await (prisma as any).userSettings.findUnique({ where: { userId: session.user.id } })
     const evoUrl = settings?.evolutionApiUrl || process.env.EVOLUTION_API_URL
     const evoKey = settings?.evolutionApiKey || process.env.EVOLUTION_API_KEY
 
