@@ -27,7 +27,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.crm-app.rule=Host(`crm.ckmedia.com.br`)"
       - "traefik.http.routers.crm-app.entrypoints=websecure"
-      - "traefik.http.routers.crm-app.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.crm-app.tls.certresolver=letsencryptresolver"
       - "traefik.http.services.crm-app.loadbalancer.server.port=${PORT:-3005}"
 
   # Redis for Background Jobs (BullMQ) and Soketi Pub/Sub
@@ -61,7 +61,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.soketi.rule=Host(`crm.ckmedia.com.br`) && (PathPrefix(`/app`) || PathPrefix(`/apps`))"
       - "traefik.http.routers.soketi.entrypoints=websecure"
-      - "traefik.http.routers.soketi.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.soketi.tls.certresolver=letsencryptresolver"
       - "traefik.http.services.soketi.loadbalancer.server.port=6001"
 
   # Background Worker (Sidekiq replacement)

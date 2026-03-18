@@ -79,3 +79,42 @@ export async function sendMessage(formData: FormData) {
     return { error: 'Failed to enqueue message' }
   }
 }
+
+export async function sendAudio(formData: FormData) {
+  const conversationId = formData.get('conversationId') as string
+  const audioBase64 = formData.get('audio') as string
+
+  if (!conversationId || !audioBase64) return { error: 'Missing fields' }
+
+  const conversation = await (prisma as any).conversation.findUnique({ 
+    where: { id: conversationId },
+    include: { contact: true, inbox: true }
+  })
+  
+  if (!conversation) return { error: 'Conversation not found' }
+
+  try {
+    const newMessage = await (prisma as any).message.create({
+      data: {
+        status: 'enqueued',
+        senderType: 'agent',
+        conversationId: conversation.id,
+        mediaType: 'audio',
+        mediaUrl: audioBase64 // Storing the base64 or a transient URL so the frontend can display the player immediately
+      }
+    })
+
+    await messageQueue.add('sendAudioMessage', {
+      messageId: newMessage.id,
+      inboxName: conversation.inbox.name,
+      contactIdentifier: conversation.contact.identifier,
+      audioBase64: audioBase64
+    })
+
+    revalidatePath(`/chat`)
+    return { success: true }
+  } catch (error: any) {
+    console.error('Failed to enqueue audio message:', error.message)
+    return { error: 'Failed to enqueue audio message' }
+  }
+}

@@ -53,6 +53,8 @@ model Message {
   status         String   @default("enqueued") // "enqueued", "sent", "delivered", "read", "error"
   senderType     String   // "agent" ou "contact"
   conversationId String
+  mediaUrl       String?
+  mediaType      String?  // 'audio', 'image', 'document', 'video'
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

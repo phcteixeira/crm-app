@@ -60,6 +60,17 @@ export const sendTextMessage = async (instanceName: string, number: string, text
   return response.data;
 };
 
+export const sendAudioMessage = async (instanceName: string, number: string, audioBase64: string) => {
+  // Strip the 'data:audio/webm;base64,' prefix just in case Evolution API prefers raw base64
+  const base64Data = audioBase64.includes('base64,') ? audioBase64.split('base64,')[1] : audioBase64;
+  const response = await evolutionApi.post(`/message/sendWhatsAppAudio/${instanceName}`, {
+    number,
+    audio: base64Data,
+    encoding: true
+  });
+  return response.data;
+};
+
 export const setWebhooks = async (instanceName: string, webhookUrl: string) => {
   const response = await evolutionApi.post(`/webhook/set/${instanceName}`, {
     enabled: true,

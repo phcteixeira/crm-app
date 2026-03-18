@@ -1,5 +1,5 @@
 import { Worker, Job } from 'bullmq';
-import { sendTextMessage } from '../services/evolutionApi';
+import { sendTextMessage, sendAudioMessage } from '../services/evolutionApi';
 import { prisma } from '../lib/prisma';
 import Redis from 'ioredis';
 import Pusher from 'pusher';
@@ -57,6 +57,39 @@ const worker = new Worker('message-queue', async (job: Job) => {
 
       // We should probably throw so BullMQ retries, but for now we swallow it
       throw new Error(`Failed to send message: ${error.message}`);
+    }
+  } else if (job.name === 'sendAudioMessage') {
+    const { messageId, inboxName, contactIdentifier, audioBase64 } = job.data;
+
+    try {
+      // 1. Fire HTTP to Evolution API
+      await sendAudioMessage(inboxName, contactIdentifier, audioBase64);
+      
+      // 2. Mark as sent internally
+      const updatedMessage = await prisma.message.update({
+        where: { id: messageId },
+        data: { status: 'sent' }
+      });
+
+      // 3. Inform Frontend via WebSocket (Soketi/Pusher)
+      await pusher.trigger(
+        `conversation-${(updatedMessage as any).conversationId}`,
+        'MESSAGE_STATUS_UPDATE',
+        { messageId: updatedMessage.id, status: 'sent' }
+      );
+
+      console.log(`[Worker] Job ${job.id} completed. Audio sent.`);
+
+    } catch (error: any) {
+      console.error(`[Worker] Job ${job.id} failed:`, error.message);
+      
+      // Mark as error
+      await prisma.message.update({
+        where: { id: messageId },
+        data: { status: 'error' }
+      });
+
+      throw new Error(`Failed to send audio: ${error.message}`);
     }
   }
 }, { connection: connection as any });

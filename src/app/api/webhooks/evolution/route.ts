@@ -53,6 +53,22 @@ export async function POST(request: Request) {
       
       const messageId = key.id;
       const fromMe = key.fromMe;
+      
+      // Media Handling
+      let mediaUrl = null;
+      let mediaType = null;
+      const msgType = data.messageType || '';
+      
+      if (['image', 'audio', 'video', 'document', 'sticker'].includes(msgType)) {
+        mediaType = msgType;
+        if (data.message?.base64) {
+           const nestedMsg = data.message?.message || {};
+           const mediaObj = nestedMsg.imageMessage || nestedMsg.audioMessage || nestedMsg.videoMessage || nestedMsg.documentMessage || nestedMsg.stickerMessage || {};
+           const mimetype = mediaObj.mimetype || 'application/octet-stream';
+           mediaUrl = `data:${mimetype};base64,${data.message.base64}`;
+        }
+      }
+      
       let inbox = await (prisma as any).inbox.findUnique({ where: { name: instance } });
       if (!inbox) {
         inbox = await (prisma as any).inbox.create({ data: { name: instance, status: 'connected' } });
@@ -71,13 +87,15 @@ export async function POST(request: Request) {
 
       const newMessage = await (prisma as any).message.upsert({
         where: { id: messageId },
-        update: { text, status: fromMe ? 'sent' : 'received' },
+        update: { text, status: fromMe ? 'sent' : 'received', mediaUrl, mediaType },
         create: {
           id: messageId,
           text,
           status: fromMe ? 'sent' : 'received',
           senderType: fromMe ? 'agent' : 'contact',
           conversationId: conversation.id,
+          mediaUrl,
+          mediaType
         }
       });
       

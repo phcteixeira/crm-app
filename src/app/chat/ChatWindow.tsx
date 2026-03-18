@@ -2,15 +2,17 @@
 
 import { useState, useEffect, useRef, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Send } from 'lucide-react'
-import { getMessages, sendMessage } from './actions'
+import { Send, Mic, Square } from 'lucide-react'
+import { getMessages, sendMessage, sendAudio } from './actions'
 import Pusher from 'pusher-js'
 
 type Message = {
   id: string
   text: string | null
   status: string
-  sender: string
+  senderType: string
+  mediaUrl?: string | null
+  mediaType?: string | null
   createdAt: string | Date
 }
 
@@ -26,8 +28,11 @@ export function ChatWindow({ conversationId, contactName, contactIdentifier, inb
   const router = useRouter()
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [text, setText] = useState('')
+  const [isRecording, setIsRecording] = useState(false)
   const [isPending, startTransition] = useTransition()
   const bottomRef = useRef<HTMLDivElement>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
 
   const loadMessages = async () => {
     const msgs = await getMessages(conversationId)
@@ -122,6 +127,55 @@ export function ChatWindow({ conversationId, contactName, contactIdentifier, inb
     })
   }
 
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mediaRecorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = mediaRecorder
+      audioChunksRef.current = []
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data)
+        }
+      }
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        const reader = new FileReader()
+        reader.readAsDataURL(audioBlob)
+        reader.onloadend = () => {
+          const base64Audio = reader.result as string
+          const fd = new FormData()
+          fd.append('conversationId', conversationId)
+          fd.append('inboxName', inboxName)
+          fd.append('audio', base64Audio)
+          
+          startTransition(async () => {
+            await sendAudio(fd)
+            await loadMessages()
+          })
+        }
+        
+        // Stop all tracks to release mic
+        stream.getTracks().forEach(track => track.stop())
+      }
+
+      mediaRecorder.start()
+      setIsRecording(true)
+    } catch (err) {
+      console.error('Error accessing microphone:', err)
+      alert('Não foi possível acessar o microfone. Verifique as permissões.')
+    }
+  }
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop()
+      setIsRecording(false)
+    }
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -148,13 +202,30 @@ export function ChatWindow({ conversationId, contactName, contactIdentifier, inb
           </div>
         )}
         {messages.map((msg) => (
-          <div key={msg.id} className={`message-bubble ${msg.sender === 'me' ? 'sent' : 'received'}`}>
+          <div key={msg.id} className={`message-bubble ${msg.senderType === 'agent' ? 'sent' : 'received'}`}>
+            {msg.mediaType === 'image' && msg.mediaUrl && (
+              <img src={msg.mediaUrl} alt="Image" style={{ maxWidth: '100%', borderRadius: '8px', marginBottom: msg.text ? '8px' : '0' }} />
+            )}
+            {msg.mediaType === 'audio' && msg.mediaUrl && (
+              <audio controls src={msg.mediaUrl} style={{ maxWidth: '100%', marginBottom: msg.text ? '8px' : '0', height: '40px' }} />
+            )}
+            {msg.mediaType === 'video' && msg.mediaUrl && (
+              <video controls src={msg.mediaUrl} style={{ maxWidth: '100%', borderRadius: '8px', marginBottom: msg.text ? '8px' : '0' }} />
+            )}
+            {msg.mediaType === 'document' && msg.mediaUrl && (
+              <a href={msg.mediaUrl} download="document" target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px', marginBottom: msg.text ? '8px' : '0', color: 'inherit', textDecoration: 'none' }}>
+                📄 Download Anexo
+              </a>
+            )}
+            {msg.mediaType === 'sticker' && msg.mediaUrl && (
+              <img src={msg.mediaUrl} alt="Sticker" style={{ width: '120px', height: '120px', objectFit: 'contain', marginBottom: msg.text ? '8px' : '0' }} />
+            )}
             {msg.text && <p>{msg.text}</p>}
             <div className="message-meta">
               <span className="message-time">
                 {new Date(msg.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
               </span>
-              {msg.sender === 'me' && (
+              {msg.senderType === 'agent' && (
                 <span className={`message-status status-${msg.status}`}>
                   {msg.status === 'read' ? '✓✓' : msg.status === 'delivered' ? '✓✓' : '✓'}
                 </span>
@@ -167,21 +238,42 @@ export function ChatWindow({ conversationId, contactName, contactIdentifier, inb
 
       {/* Input */}
       <div className="chat-input-area">
-        <textarea
-          className="chat-input"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Digite uma mensagem..."
-          rows={1}
-        />
-        <button
-          className="btn-send"
-          onClick={handleSend}
-          disabled={isPending || !text.trim()}
-        >
-          <Send size={20} />
-        </button>
+        {!isRecording ? (
+          <textarea
+            className="chat-input"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Digite uma mensagem..."
+            rows={1}
+          />
+        ) : (
+          <div className="chat-input" style={{ display: 'flex', alignItems: 'center', color: '#ef4444', fontWeight: 500 }}>
+            <span style={{ width: '12px', height: '12px', background: '#ef4444', borderRadius: '50%', display: 'inline-block', marginRight: '8px', animation: 'pulse 1.5s infinite' }}></span>
+            Gravando áudio...
+          </div>
+        )}
+        
+        {text.trim() ? (
+          <button
+            className="btn-send"
+            onClick={handleSend}
+            disabled={isPending}
+            title="Enviar mensagem"
+          >
+            <Send size={20} />
+          </button>
+        ) : (
+          <button
+            className="btn-send"
+            onClick={isRecording ? stopRecording : startRecording}
+            disabled={isPending}
+            title={isRecording ? "Parar gravação" : "Gravar áudio"}
+            style={{ background: isRecording ? '#ef4444' : 'var(--accent-primary)' }}
+          >
+            {isRecording ? <Square size={20} /> : <Mic size={20} />}
+          </button>
+        )}
       </div>
     </div>
   )
