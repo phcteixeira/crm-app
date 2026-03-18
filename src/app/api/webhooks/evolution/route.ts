@@ -27,7 +27,7 @@ export async function POST(request: Request) {
       if (state === 'open') newStatus = 'connected';
       if (state === 'close') newStatus = 'disconnected';
       // Update the Inbox status
-      await prisma.inbox.updateMany({
+      await (prisma as any).inbox.updateMany({
         where: { name: instance },
         data: { 
           status: newStatus,
@@ -39,32 +39,37 @@ export async function POST(request: Request) {
 
     // 2. Incoming Messages
     else if (eventName === 'MESSAGES.UPSERT' || eventName === 'MESSAGES_UPSERT') {
-      const messageData = data.message;
-      const remoteJid = messageData?.key?.remoteJid;
+      const messageData = data.message || {};
+      const key = messageData.key || data.key || {};
+      const remoteJid = key.remoteJid;
       if (!remoteJid || remoteJid === 'status@broadcast') return NextResponse.json({ success: true });
 
       const phone = remoteJid.replace('@s.whatsapp.net', '');
       const senderName = data.pushName || phone;
-      const text = messageData.message?.conversation || messageData.message?.extendedTextMessage?.text || '';
-      const messageId = messageData.key.id;
-      const fromMe = messageData.key.fromMe;
-      let inbox = await prisma.inbox.findUnique({ where: { name: instance } });
+      
+      // Handle both nested and flat message content
+      const content = messageData.message || messageData || {};
+      const text = content.conversation || content.extendedTextMessage?.text || data.message?.conversation || '';
+      
+      const messageId = key.id;
+      const fromMe = key.fromMe;
+      let inbox = await (prisma as any).inbox.findUnique({ where: { name: instance } });
       if (!inbox) {
-        inbox = await prisma.inbox.create({ data: { name: instance, status: 'connected' } });
+        inbox = await (prisma as any).inbox.create({ data: { name: instance, status: 'connected' } });
       }
 
-      let contact = await prisma.contact.findUnique({ where: { identifier: phone } });
+      let contact = await (prisma as any).contact.findUnique({ where: { identifier: phone } });
       if (!contact) {
-        contact = await prisma.contact.create({ data: { identifier: phone, name: senderName } });
+        contact = await (prisma as any).contact.create({ data: { identifier: phone, name: senderName } });
       }
 
-      const conversation = await prisma.conversation.upsert({
+      const conversation = await (prisma as any).conversation.upsert({
         where: { inboxId_contactId: { inboxId: inbox.id, contactId: contact.id } },
         update: {},
         create: { inboxId: inbox.id, contactId: contact.id, status: 'open' }
       });
 
-      const newMessage = await prisma.message.upsert({
+      const newMessage = await (prisma as any).message.upsert({
         where: { id: messageId },
         update: { text, status: fromMe ? 'sent' : 'received' },
         create: {
@@ -94,11 +99,11 @@ export async function POST(request: Request) {
       else if (statusUpdate === 4) newStatus = 'read';
 
       if (messageId) {
-        await prisma.message.updateMany({
+        await (prisma as any).message.updateMany({
           where: { id: messageId },
           data: { status: newStatus }
         });
-        const updatedMsg = await prisma.message.findUnique({ where: { id: messageId } });
+        const updatedMsg = await (prisma as any).message.findUnique({ where: { id: messageId } });
         if (updatedMsg) {
           try {
             await pusher.trigger(`conversation-${(updatedMsg as any).conversationId}`, 'MESSAGE_STATUS_UPDATE', { 

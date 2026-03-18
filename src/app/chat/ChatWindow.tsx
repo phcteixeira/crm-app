@@ -42,9 +42,12 @@ export function ChatWindow({ conversationId, contactName, contactIdentifier, inb
   useEffect(() => {
     console.log('Initializing Pusher for conversation:', conversationId);
     
-    // Auto-detect host: use ENV if provided (local), otherwise use current window host (production)
+    // Auto-detect host: use ENV if provided and NOT localhost, otherwise use current window host
     const isProduction = window.location.protocol === 'https:';
-    const wsHost = process.env.NEXT_PUBLIC_SOKETI_HOST || window.location.hostname;
+    const envHost = process.env.NEXT_PUBLIC_SOKETI_HOST;
+    const wsHost = (envHost && envHost !== 'localhost' && envHost !== '127.0.0.1') 
+      ? envHost 
+      : window.location.hostname;
     const wsPort = parseInt(process.env.NEXT_PUBLIC_SOKETI_PORT || (isProduction ? '443' : '6001'));
 
     const pusher = new Pusher(process.env.NEXT_PUBLIC_SOKETI_APP_KEY || 'soketi-crm-key', {
