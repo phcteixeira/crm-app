@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Send } from 'lucide-react'
 import { getMessages, sendMessage } from './actions'
 
@@ -21,6 +22,7 @@ type Props = {
 }
 
 export function ChatWindow({ contactId, contactName, contactPhone, instanceName, initialMessages }: Props) {
+  const router = useRouter()
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [text, setText] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -37,9 +39,34 @@ export function ChatWindow({ contactId, contactName, contactPhone, instanceName,
   }, [contactId, initialMessages])
 
   useEffect(() => {
-    // Poll for new messages every 3 seconds
-    const interval = setInterval(loadMessages, 3000)
-    return () => clearInterval(interval)
+    const eventSource = new EventSource('/api/events')
+
+    eventSource.addEventListener('NEW_MESSAGE', (e) => {
+      try {
+        const newMsg = JSON.parse(e.data)
+        if (newMsg.contactId === contactId) {
+          setMessages(prev => {
+            if (prev.some(m => m.id === newMsg.id)) return prev
+            return [...prev, newMsg]
+          })
+        }
+        router.refresh()
+      } catch (err) {}
+    })
+
+    eventSource.addEventListener('MESSAGE_STATUS_UPDATE', (e) => {
+      try {
+        const updateData = JSON.parse(e.data)
+        setMessages(prev => prev.map(m => 
+          m.id === updateData.messageId ? { ...m, status: updateData.status } : m
+        ))
+        router.refresh()
+      } catch (err) {}
+    })
+
+    return () => {
+      eventSource.close()
+    }
   }, [contactId])
 
   // Auto-scroll to bottom on new messages
