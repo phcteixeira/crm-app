@@ -15,13 +15,11 @@ export async function createNewInstance(formData: FormData) {
 
   try {
     // 1. Create in Evolution API and Setup Webhooks
-    let domain = process.env.DOMAIN || process.env.APP_URL || 'localhost:3005'
-    // Remove protocol and trailing slashes if the user accidentally included them in the .env
-    domain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '')
-    const protocol = domain.includes('localhost') ? 'http' : 'https'
-    const webhookUrl = `${protocol}://${domain}`
+    // AUTH_URL is always the correct public-facing URL (e.g. https://crm.ckmedia.com.br)
+    // Falls back to localhost for local development
+    const baseUrl = (process.env.AUTH_URL || 'http://localhost:3005').replace(/\/$/, '')
     
-    await createInstance(name, `${webhookUrl}/api/webhooks/evolution`)
+    await createInstance(name, `${baseUrl}/api/webhooks/evolution`)
 
     // 2. Connect to get QR
     let connection = await connectInstance(name)
