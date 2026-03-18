@@ -25,14 +25,14 @@ const worker = new Worker('message-queue', async (job: Job) => {
   console.log(`[Worker] Processing job ${job.id}`);
   
   if (job.name === 'sendTextMessage') {
-    const { messageId, inboxName, contactIdentifier, text } = job.data;
+    const { messageId, inboxName, contactIdentifier, text, evoUrl, evoKey } = job.data;
 
     try {
       // 1. Fire HTTP to Evolution API
-      await sendTextMessage(inboxName, contactIdentifier, text);
+      await sendTextMessage(inboxName, contactIdentifier, text, evoUrl, evoKey);
       
       // 2. Mark as sent internally
-      const updatedMessage = await prisma.message.update({
+      const updatedMessage = await (prisma as any).message.update({
         where: { id: messageId },
         data: { status: 'sent' }
       });
@@ -50,7 +50,7 @@ const worker = new Worker('message-queue', async (job: Job) => {
       console.error(`[Worker] Job ${job.id} failed:`, error.message);
       
       // Mark as error
-      await prisma.message.update({
+      await (prisma as any).message.update({
         where: { id: messageId },
         data: { status: 'error' }
       });
@@ -59,14 +59,14 @@ const worker = new Worker('message-queue', async (job: Job) => {
       throw new Error(`Failed to send message: ${error.message}`);
     }
   } else if (job.name === 'sendAudioMessage') {
-    const { messageId, inboxName, contactIdentifier, audioBase64 } = job.data;
+    const { messageId, inboxName, contactIdentifier, audioBase64, evoUrl, evoKey } = job.data;
 
     try {
       // 1. Fire HTTP to Evolution API
-      await sendAudioMessage(inboxName, contactIdentifier, audioBase64);
+      await sendAudioMessage(inboxName, contactIdentifier, audioBase64, evoUrl, evoKey);
       
       // 2. Mark as sent internally
-      const updatedMessage = await prisma.message.update({
+      const updatedMessage = await (prisma as any).message.update({
         where: { id: messageId },
         data: { status: 'sent' }
       });
@@ -84,7 +84,7 @@ const worker = new Worker('message-queue', async (job: Job) => {
       console.error(`[Worker] Job ${job.id} failed:`, error.message);
       
       // Mark as error
-      await prisma.message.update({
+      await (prisma as any).message.update({
         where: { id: messageId },
         data: { status: 'error' }
       });

@@ -54,6 +54,13 @@ export async function sendMessage(formData: FormData) {
   if (!conversation) return { error: 'Conversation not found' }
 
   try {
+    // 0. Get user settings
+    const settings = await (prisma as any).userSettings.findUnique({
+      where: { userId: conversation.inbox.userId }
+    })
+    const evoUrl = settings?.evolutionApiUrl || process.env.EVOLUTION_API_URL
+    const evoKey = settings?.evolutionApiKey || process.env.EVOLUTION_API_KEY
+
     // 1. Save to DB with 'enqueued' status (Instant feedback for User)
     const newMessage = await (prisma as any).message.create({
       data: {
@@ -69,7 +76,9 @@ export async function sendMessage(formData: FormData) {
       messageId: newMessage.id,
       inboxName: conversation.inbox.name,
       contactIdentifier: conversation.contact.identifier,
-      text: text
+      text: text,
+      evoUrl,
+      evoKey
     })
 
     revalidatePath(`/chat`)
@@ -94,6 +103,13 @@ export async function sendAudio(formData: FormData) {
   if (!conversation) return { error: 'Conversation not found' }
 
   try {
+    // 0. Get user settings
+    const settings = await (prisma as any).userSettings.findUnique({
+      where: { userId: conversation.inbox.userId }
+    })
+    const evoUrl = settings?.evolutionApiUrl || process.env.EVOLUTION_API_URL
+    const evoKey = settings?.evolutionApiKey || process.env.EVOLUTION_API_KEY
+
     const newMessage = await (prisma as any).message.create({
       data: {
         status: 'enqueued',
@@ -108,7 +124,9 @@ export async function sendAudio(formData: FormData) {
       messageId: newMessage.id,
       inboxName: conversation.inbox.name,
       contactIdentifier: conversation.contact.identifier,
-      audioBase64: audioBase64
+      audioBase64: audioBase64,
+      evoUrl,
+      evoKey
     })
 
     revalidatePath(`/chat`)
