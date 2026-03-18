@@ -18,6 +18,8 @@ services:
       - SOKETI_DEFAULT_APP_ID=crm-app
       - SOKETI_DEFAULT_APP_KEY=soketi-crm-key
       - SOKETI_DEFAULT_APP_SECRET=soketi-crm-secret
+      - AUTH_SECRET=${AUTH_SECRET}
+      - AUTH_URL=https://crm.ckmedia.com.br
     depends_on:
       - redis
       - soketi
