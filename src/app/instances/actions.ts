@@ -165,7 +165,7 @@ export async function syncInstancesWithEvolution() {
 
     if (toDelete.length > 0) {
       await (prisma as any).inbox.deleteMany({
-        where: { name: { in: toDelete.map(i => i.name) } }
+        where: { name: { in: toDelete.map((i: any) => i.name) } }
       })
       revalidatePath('/instances')
       return { synced: true, removed: toDelete.length }
