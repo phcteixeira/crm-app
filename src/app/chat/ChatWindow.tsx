@@ -40,19 +40,30 @@ export function ChatWindow({ conversationId, contactName, contactIdentifier, inb
   }, [conversationId, initialMessages])
 
   useEffect(() => {
-    // Configure Soketi / Pusher Client
+    console.log('Initializing Pusher for conversation:', conversationId);
+    
+    // Auto-detect host: use ENV if provided (local), otherwise use current window host (production)
+    const isProduction = window.location.protocol === 'https:';
+    const wsHost = process.env.NEXT_PUBLIC_SOKETI_HOST || window.location.hostname;
+    const wsPort = parseInt(process.env.NEXT_PUBLIC_SOKETI_PORT || (isProduction ? '443' : '6001'));
+
     const pusher = new Pusher(process.env.NEXT_PUBLIC_SOKETI_APP_KEY || 'soketi-crm-key', {
-      wsHost: process.env.NEXT_PUBLIC_SOKETI_HOST || 'localhost',
-      wsPort: parseInt(process.env.NEXT_PUBLIC_SOKETI_PORT || '6001'),
-      forceTLS: false,
+      wsHost: wsHost,
+      wsPort: wsPort,
+      forceTLS: isProduction,
       disableStats: true,
       enabledTransports: ['ws', 'wss'],
-      cluster: 'us-east-1' // Not used by Soketi, but required by pusher-js
+      cluster: 'us-east-1'
+    });
+
+    pusher.connection.bind('state_change', (states: any) => {
+      console.log('Pusher connection state changed:', states.current);
     });
 
     const channel = pusher.subscribe(`conversation-${conversationId}`);
 
     channel.bind('NEW_MESSAGE', (newMsg: any) => {
+      console.log('Pusher NEW_MESSAGE received:', newMsg);
       try {
         if (newMsg.conversationId === conversationId) {
           setMessages(prev => {

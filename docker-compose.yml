@@ -11,6 +11,16 @@ services:
       - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
       - DOMAIN=${DOMAIN}
       - PORT=${PORT:-3005}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SOKETI_HOST=soketi
+      - SOKETI_PORT=6001
+      - SOKETI_DEFAULT_APP_ID=crm-app
+      - SOKETI_DEFAULT_APP_KEY=soketi-crm-key
+      - SOKETI_DEFAULT_APP_SECRET=soketi-crm-secret
+    depends_on:
+      - redis
+      - soketi
     networks:
       - maracainet
     labels:
@@ -47,6 +57,12 @@ services:
       - "9601:9601"
     networks:
       - maracainet
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.soketi.rule=Host(`crm.ckmedia.com.br`) && (PathPrefix(`/app`) || PathPrefix(`/apps`))"
+      - "traefik.http.routers.soketi.entrypoints=websecure"
+      - "traefik.http.routers.soketi.tls.certresolver=letsencrypt"
+      - "traefik.http.services.soketi.loadbalancer.server.port=6001"
 
   # Background Worker (Sidekiq replacement)
   worker:
@@ -59,8 +75,14 @@ services:
       - EVOLUTION_API_URL=${EVOLUTION_API_URL}
       - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
       - REDIS_URL=redis://redis:6379
+      - SOKETI_HOST=soketi
+      - SOKETI_PORT=6001
+      - SOKETI_DEFAULT_APP_ID=crm-app
+      - SOKETI_DEFAULT_APP_KEY=soketi-crm-key
+      - SOKETI_DEFAULT_APP_SECRET=soketi-crm-secret
     depends_on:
       - redis
+      - soketi
     networks:
       - maracainet
 
