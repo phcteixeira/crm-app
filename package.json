@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start -p 3005",
     "lint": "eslint",
-    "worker": "tsx src/workers/evolutionWorker.ts"
+    "worker": "tsx src/workers/evolutionWorker.ts",
+    "build:worker": "esbuild src/workers/evolutionWorker.ts --bundle --platform=node --target=node20 --outfile=.next/standalone/worker.js --external:@prisma/client --external:bullmq --external:ioredis --external:pusher"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

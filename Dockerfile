@@ -26,6 +26,9 @@ RUN npx prisma generate
 # Build Next.js
 RUN npm run build
 
+# Build Worker (must be after build so standalone folder exists)
+RUN npm run build:worker
+
 # 3. Production runner
 FROM node:20-slim AS runner
 WORKDIR /app
