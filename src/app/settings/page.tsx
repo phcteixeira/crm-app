@@ -12,9 +12,9 @@ export default async function SettingsPage() {
   if (!session?.user?.id) redirect('/login')
 
   const [settings, connected, pending] = await Promise.all([
-    prisma.userSettings.findUnique({ where: { userId: session.user.id } }),
-    prisma.inbox.count({ where: { userId: session.user.id, status: 'connected' } }),
-    prisma.inbox.count({ where: { userId: session.user.id, status: { in: ['connecting', 'disconnected'] } } }),
+    (prisma as any).userSettings.findUnique({ where: { userId: session.user.id } }),
+    (prisma as any).inbox.count({ where: { userId: session.user.id, status: 'connected' } }),
+    (prisma as any).inbox.count({ where: { userId: session.user.id, status: { in: ['connecting', 'disconnected'] } } }),
   ])
 
   const webhookUrl = `${process.env.AUTH_URL || 'http://localhost:3005'}/api/webhooks/evolution`
