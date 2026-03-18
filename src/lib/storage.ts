@@ -36,8 +36,8 @@ export async function saveFile(base64OrBuffer: string | Buffer, fileName?: strin
 
   await fs.writeFile(filePath, buffer);
 
-  // Return the public URL
-  return `/uploads/${finalFileName}`;
+  // Return the dynamic API URL instead of static path for better reliability in Standalone mode
+  return `/api/media/${finalFileName}`;
 }
 
 export async function deleteFile(relativeUrl: string): Promise<void> {
