@@ -4,7 +4,12 @@ import { prisma } from '@/lib/prisma'
 import { createInstance, connectInstance, deleteInstance } from '@/services/evolutionApi'
 import { revalidatePath } from 'next/cache'
 
+import { auth } from '@/auth'
+
 export async function createNewInstance(formData: FormData) {
+  const session = await auth()
+  if (!session?.user?.id) return { error: 'Unauthorized' }
+
   const name = formData.get('name') as string
   if (!name) return { error: 'Name is required' }
 
@@ -37,6 +42,7 @@ export async function createNewInstance(formData: FormData) {
         name,
         channelType: 'whatsapp',
         status: 'connecting',
+        userId: session.user.id,
         credentials: {
           qrCode: connection.base64 || null,
           evolutionApiId: connection.instance?.instanceId || name
@@ -54,6 +60,12 @@ export async function createNewInstance(formData: FormData) {
 
 export async function removeInstance(name: string) {
   try {
+    const session = await auth()
+    if (!session?.user?.id) return { error: 'Unauthorized' }
+
+    const dbInbox = await prisma.inbox.findUnique({ where: { name } })
+    if (!dbInbox || dbInbox.userId !== session.user.id) return { error: 'Unauthorized' }
+
     // 1. Delete in Evolution API
     await deleteInstance(name)
     
@@ -109,6 +121,9 @@ export async function pollInstanceStatus(name: string) {
 
 export async function syncInstancesWithEvolution() {
   try {
+    const session = await auth()
+    if (!session?.user?.id) return { error: 'Unauthorized' }
+
     const { listInstances } = await import('@/services/evolutionApi')
     const evolutionData = await listInstances()
 
@@ -118,7 +133,7 @@ export async function syncInstancesWithEvolution() {
     ).filter((n: string) => n.length > 0)
 
     // Find DB inboxes not present in Evolution and remove them
-    const dbInboxes = await prisma.inbox.findMany()
+    const dbInboxes = await prisma.inbox.findMany({ where: { userId: session.user.id } })
     const toDelete = dbInboxes.filter((i: { name: string }) => !evolutionNames.includes(i.name))
 
     if (toDelete.length > 0) {

@@ -17,9 +17,21 @@ model Inbox {
   channelType    String    @default("whatsapp")
   status         String    @default("disconnected") // "connected", "disconnected", "connecting"
   credentials    Json?     // Stores qrCode, evolutionApiId, tokens safely.
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   conversations  Conversation[]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String?
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  inboxes   Inbox[]
 }
 
 model Contact {
