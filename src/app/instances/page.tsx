@@ -14,11 +14,11 @@ export default async function InstancesPage() {
   if (!session?.user?.id) redirect('/login')
 
   const [instances, settings] = await Promise.all([
-    prisma.inbox.findMany({
+    (prisma as any).inbox.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: 'desc' }
     }),
-    prisma.userSettings.findUnique({
+    (prisma as any).userSettings.findUnique({
       where: { userId: session.user.id }
     })
   ])
