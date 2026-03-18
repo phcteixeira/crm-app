@@ -74,7 +74,7 @@ export async function removeInstance(name: string) {
     const session = await auth()
     if (!session?.user?.id) return { error: 'Unauthorized' }
 
-    const dbInbox = await prisma.inbox.findUnique({ where: { name } })
+    const dbInbox = await (prisma as any).inbox.findUnique({ where: { name } })
     if (!dbInbox || dbInbox.userId !== session.user.id) return { error: 'Unauthorized' }
 
     // 0. Get user settings
@@ -161,7 +161,7 @@ export async function syncInstancesWithEvolution() {
 
     // Find DB inboxes not present in Evolution and remove them
     const dbInboxes = await (prisma as any).inbox.findMany({ where: { userId: session.user.id } })
-    const toDelete = dbInboxes.filter((i: { name: string }) => !evolutionNames.includes(i.name))
+    const toDelete = dbInboxes.filter((i: any) => !evolutionNames.includes(i.name))
 
     if (toDelete.length > 0) {
       await (prisma as any).inbox.deleteMany({
