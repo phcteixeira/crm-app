@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/prisma'
 import { createNewInstance } from './actions'
-import { Plus } from 'lucide-react'
+import { Plus, Settings } from 'lucide-react'
 import { InstanceCard, InstancesSyncManager } from './InstanceCard'
+import Link from 'next/link'
 
 import { auth, signOut } from '@/auth'
 import { redirect } from 'next/navigation'
@@ -12,10 +13,15 @@ export default async function InstancesPage() {
   const session = await auth()
   if (!session?.user?.id) redirect('/login')
 
-  const instances = await prisma.inbox.findMany({
-    where: { userId: session.user.id },
-    orderBy: { createdAt: 'desc' }
-  })
+  const [instances, settings] = await Promise.all([
+    prisma.inbox.findMany({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: 'desc' }
+    }),
+    prisma.userSettings.findUnique({
+      where: { userId: session.user.id }
+    })
+  ])
 
   return (
     <div className="container animate-fade-in">
@@ -27,6 +33,9 @@ export default async function InstancesPage() {
         
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <span style={{ fontSize: '0.9rem', color: '#666' }}>{session.user.email}</span>
+          <Link href="/settings" className="btn btn-ghost" style={{ padding: '8px', border: '1px solid var(--panel-border)' }}>
+            <Settings size={18} />
+          </Link>
           <form action={async () => {
             'use server';
             await signOut({ redirectTo: '/login' });
@@ -48,6 +57,7 @@ export default async function InstancesPage() {
             type="text" 
             name="name" 
             placeholder="Nome da Instância" 
+            defaultValue={settings?.defaultInstanceName || ''}
             required 
             className="input-glass"
             style={{ width: '250px', flex: 1 }}

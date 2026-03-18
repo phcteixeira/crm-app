@@ -19,6 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="nav-links">
             <Link href="/instances" className="nav-link">⚡ Instâncias</Link>
             <Link href="/chat" className="nav-link">💬 Chat</Link>
+            <Link href="/settings" className="nav-link">⚙️ Configurações</Link>
           </div>
         </nav>
         <div className="page-wrapper">
