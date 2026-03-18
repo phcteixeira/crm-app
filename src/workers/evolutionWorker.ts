@@ -37,7 +37,7 @@ const worker = new Worker('message-queue', async (job: Job) => {
 
       // 3. Inform Frontend via WebSocket (Soketi/Pusher)
       await pusher.trigger(
-        `conversation-${updatedMessage.conversationId}`,
+        `conversation-${(updatedMessage as any).conversationId}`,
         'MESSAGE_STATUS_UPDATE',
         { messageId: updatedMessage.id, status: 'sent' }
       );
@@ -57,7 +57,7 @@ const worker = new Worker('message-queue', async (job: Job) => {
       throw new Error(`Failed to send message: ${error.message}`);
     }
   }
-}, { connection });
+}, { connection: connection as any });
 
 worker.on('failed', (job, err) => {
   if (job) {

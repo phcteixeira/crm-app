@@ -101,7 +101,7 @@ export async function POST(request: Request) {
         const updatedMsg = await prisma.message.findUnique({ where: { id: messageId } });
         if (updatedMsg) {
           try {
-            await pusher.trigger(`conversation-${updatedMsg.conversationId}`, 'MESSAGE_STATUS_UPDATE', { 
+            await pusher.trigger(`conversation-${(updatedMsg as any).conversationId}`, 'MESSAGE_STATUS_UPDATE', { 
               messageId, 
               status: newStatus 
             });
