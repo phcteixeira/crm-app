@@ -46,14 +46,16 @@ export async function POST(request: Request) {
       if (!remoteJid || remoteJid === 'status@broadcast') return NextResponse.json({ success: true });
 
       const phone = remoteJid.replace('@s.whatsapp.net', '');
-      const senderName = data.pushName || phone;
+      const messageId = key.id;
+      const fromMe = key.fromMe;
+
+      // Se a mensagem for enviada por nós, o data.pushName traz o nosso próprio nome.
+      // Nesse caso usamos o telefone como fallback até que o cliente responda.
+      const senderName = (!fromMe && data.pushName) ? data.pushName : phone;
       
       // Handle both nested and flat message content
       const content = messageData.message || messageData || {};
       const text = content.conversation || content.extendedTextMessage?.text || data.message?.conversation || '';
-      
-      const messageId = key.id;
-      const fromMe = key.fromMe;
       
       // Media Handling
       let mediaUrl = null;
@@ -88,6 +90,13 @@ export async function POST(request: Request) {
       let contact = await (prisma as any).contact.findUnique({ where: { identifier: phone } });
       if (!contact) {
         contact = await (prisma as any).contact.create({ data: { identifier: phone, name: senderName } });
+      } else if (!fromMe && data.pushName && contact.name !== data.pushName) {
+        // Se o cliente respondeu e agora temos o nome real dele, e for diferente do que está no banco (como seu nome ou só o número),
+        // fazemos a atualização do nome no banco de dados.
+        contact = await (prisma as any).contact.update({
+          where: { id: contact.id },
+          data: { name: data.pushName }
+        });
       }
 
       const conversation = await (prisma as any).conversation.upsert({

@@ -4,6 +4,7 @@ import { PhoneCall, MessageSquare } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { RealtimeSidebar } from './RealtimeSidebar'
+import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,7 +71,7 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
               const lastMsg = conv.messages[0]
               const isSelected = conv.id === selectedConversationId
               return (
-                <a
+                <Link
                   key={conv.id}
                   href={`/chat?conversationId=${conv.id}`}
                   className={`contact-item ${isSelected ? 'active' : ''}`}
@@ -85,7 +86,7 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
                       {new Date(lastMsg.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   )}
-                </a>
+                </Link>
               )
             })
           )}

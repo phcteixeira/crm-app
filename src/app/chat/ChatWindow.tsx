@@ -80,7 +80,6 @@ export function ChatWindow({ conversationId, contactName, contactIdentifier, inb
             return [...prev, newMsg]
           })
         }
-        router.refresh()
       } catch (err) {}
     });
 
@@ -89,7 +88,6 @@ export function ChatWindow({ conversationId, contactName, contactIdentifier, inb
         setMessages(prev => prev.map(m => 
           m.id === updateData.messageId ? { ...m, status: updateData.status } : m
         ))
-        router.refresh()
       } catch (err) {}
     });
 
