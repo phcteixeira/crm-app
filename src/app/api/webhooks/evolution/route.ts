@@ -62,8 +62,10 @@ export async function POST(request: Request) {
       let mediaType = null;
       const msgType = data.messageType || '';
       
-      if (['image', 'audio', 'video', 'document', 'sticker'].includes(msgType)) {
-        mediaType = msgType;
+      const isMedia = ['imageMessage', 'audioMessage', 'videoMessage', 'documentMessage', 'stickerMessage', 'image', 'audio', 'video', 'document', 'sticker'].includes(msgType);
+      
+      if (isMedia) {
+        mediaType = msgType.replace('Message', '');
         if (data.message?.base64) {
            const nestedMsg = data.message?.message || {};
            const mediaObj = nestedMsg.imageMessage || nestedMsg.audioMessage || nestedMsg.videoMessage || nestedMsg.documentMessage || nestedMsg.stickerMessage || {};
