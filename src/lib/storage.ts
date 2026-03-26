@@ -16,11 +16,12 @@ export async function saveFile(base64OrBuffer: string | Buffer, fileName?: strin
   let extension = '';
 
   if (typeof base64OrBuffer === 'string') {
-    const matches = base64OrBuffer.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
+    const matches = base64OrBuffer.match(/^data:(.+?);base64,(.+)$/);
     if (matches && matches.length === 3) {
-      const mimeType = matches[1];
+      const rawMime = matches[1];
+      const mimeType = rawMime.split(';')[0];
       buffer = Buffer.from(matches[2], 'base64');
-      extension = `.${mimeType.split('/')[1].split('+')[0]}`;
+      extension = `.${mimeType.split('/')[1]?.split('+')[0] || 'bin'}`;
       // Fix for some common mimetypes
       if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') extension = '.docx';
       if (mimeType === 'application/pdf') extension = '.pdf';
